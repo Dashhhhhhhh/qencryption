@@ -1,0 +1,10 @@
+deprecated-stubs/METADATA.toml,sha256=A5CBZOH-EJxF0f--MOh7cZNYHtBS5y72SmqJtpEO2Ew,97
+deprecated-stubs/__init__.pyi,sha256=lhsn7X7kma5rFKLfIt9CNexFfg6TDBavAB05bYU65MQ,78
+deprecated-stubs/classic.pyi,sha256=Hs1KPkJtG3UcS97CjEFc6uUJyc5CKIxOP5_CcZN6I_o,1001
+deprecated-stubs/py.typed,sha256=47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU,0
+deprecated-stubs/sphinx.pyi,sha256=K-ze81LdGtzttpp4uqeHUXDyxOSp5SX__Xg33-nMAMA,1169
+types_Deprecated-1.2.15.20241117.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
+types_Deprecated-1.2.15.20241117.dist-info/METADATA,sha256=Z63J7Kf17m4_P9mp4qkJW_CNYEoj76_NfWfBpyDTaws,1840
+types_Deprecated-1.2.15.20241117.dist-info/RECORD,,
+types_Deprecated-1.2.15.20241117.dist-info/WHEEL,sha256=bFJAMchF8aTQGUgMZzHJyDDMPTO3ToJ7x23SLJa1SVo,92
+types_Deprecated-1.2.15.20241117.dist-info/top_level.txt,sha256=cg8f5UQO3NJ6sjb0ysnNdCkh1glaOecGpVVS7tEXryE,17

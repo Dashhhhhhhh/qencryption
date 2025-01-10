@@ -1,0 +1,37 @@
+Metadata-Version: 2.4
+Name: quil
+Version: 0.13.2
+Classifier: Development Status :: 3 - Alpha
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Operating System :: OS Independent
+Requires-Dist: numpy >=1.21
+Requires-Dist: ruff >=0.3.7 ; extra == 'dev'
+Requires-Dist: maturin >=1.2.3 ; extra == 'dev'
+Requires-Dist: mypy >=1.1.1 ; extra == 'dev'
+Requires-Dist: pytest >=7.2.2 ; extra == 'dev'
+Requires-Dist: pdoc >=14.1.0 ; extra == 'dev'
+Requires-Dist: syrupy >=3.0.6 ; extra == 'dev'
+Provides-Extra: dev
+Summary: A Python package for building and parsing Quil programs.
+Keywords: pyquil,SDK,Rigetti,Quil,Quantum
+Author-email: Rigetti Computing <softapps@rigetti.com>
+License: Apache-2.0
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown; charset=UTF-8; variant=GFM
+Project-URL: Source Code, https://github.com/rigetti/quil-rs
+
+# Quil
+
+⚠️ In Development
+
+The `quil` package provides tools for constructing, manipulating, parsing, and printing [Quil](https://github.com/quil-lang/quil) programs. Internally, it is powered by [quil-rs](https://github.com/rigetti/quil-rs).
+
+This package is still in development and breaking changes should be expected between minor versions.
+
+# Documentation
+
+Documentation for the current release of `quil` is published [here](https://rigetti.github.io/quil-rs/quil.html). Every version of `quil` ships [with type stubs](https://github.com/rigetti/quil-rs/tree/main/quil-py/quil) that provide type hints and documentation to Python tooling and editors that support the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) or similar.
+
