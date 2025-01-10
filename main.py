@@ -1,40 +1,62 @@
-from qiskit import QuantumCircuit, Aer, execute, IBMQ
+from qiskit import QuantumCircuit, Aer, execute
 from qiskit.visualization import plot_histogram
 import matplotlib.pyplot as plt
 
 
-def create_circuit():
+def generate_random_numbers(num_qubits, shots):
     """
-    Create a simple quantum circuit with 2 qubits and 2 classical bits.
-    The circuit puts the first qubit in superposition and entangles it with the second qubit.
+    Generate random numbers using a quantum circuit.
+    
+    Parameters:
+    - num_qubits (int): Number of qubits used for randomness.
+    - shots (int): Number of measurements (random numbers generated).
+    
+    Returns:
+    - dict: A dictionary with bitstrings as keys and their frequencies as values.
     """
-    # Create a quantum circuit with 2 qubits and 2 classical bits
-    circuit = QuantumCircuit(2, 2)
+    # Create a quantum circuit with the given number of qubits
+    circuit = QuantumCircuit(num_qubits, num_qubits)
 
-    # Add quantum gates
-    circuit.h(0)         # Apply a Hadamard gate to qubit 0 (creates superposition)
-    circuit.cx(0, 1)     # Apply a CNOT gate with qubit 0 as control and qubit 1 as target
+    # Apply a Hadamard gate to each qubit to create superposition
+    for qubit in range(num_qubits):
+        circuit.h(qubit)
 
-    # Measure the qubits into the classical bits
-    circuit.measure([0, 1], [0, 1])
+    # Measure each qubit
+    circuit.measure(range(num_qubits), range(num_qubits))
 
-    return circuit
+    # Simulate the circuit
+    simulator = Aer.get_backend('qasm_simulator')
+    job = execute(circuit, simulator, shots=shots)
+    result = job.result()
 
-
-def simulate_circuit(circuit):
-    """
-    Simulate the quantum circuit using the Qiskit Aer simulator.
-    """
-    simulator = Aer.get_backend('qasm_simulator')  # QASM simulator for quantum circuits
-    result = execute(circuit, simulator, shots=1000).result()
+    # Get measurement results
     counts = result.get_counts()
     return counts
 
 
-def plot_results(simulated_counts, hardware_counts=None):
+def plot_results(counts):
     """
-    Plot the results from simulation and hardware execution (if available).
+    Plot the results of the QRNG test as a histogram.
+    
+    Parameters:
+    - counts (dict): The measurement results from the quantum circuit.
     """
-    # Plot simulated results
-    print("Simulated Results:", simulated_counts)
-    plot_hi
+    print("Generated Random Numbers:")
+    for bitstring, frequency in counts.items():
+        print(f"{bitstring}: {frequency}")
+    
+    # Plot the histogram
+    plot_histogram(counts, title="Quantum Random Number Generator (QRNG) Results")
+    plt.show()
+
+
+if __name__ == "__main__":
+    # Define parameters
+    NUM_QUBITS = 4  # Number of qubits to use (bitstring length)
+    SHOTS = 1024    # Number of random numbers to generate
+
+    # Generate random numbers
+    random_counts = generate_random_numbers(NUM_QUBITS, SHOTS)
+
+    # Plot the results
+    plot_results(random_counts)
