@@ -33,7 +33,7 @@ def generate_bb84_key(num_bits):
     return alice_bits, alice_bases, qubits, circuit
 
 def encrypt_message(text, key_multiplier=4):
-    """Main encryption function that returns the encrypted text and saves it"""
+    """Main encryption function that returns the encrypted text and the key"""
     # Calculate required bits based on text length and multiplier
     required_bits = len(text) * 8  # 8 bits per character
     num_bits = required_bits * key_multiplier  # Generate extra bits for safety
@@ -90,51 +90,33 @@ def encrypt_message(text, key_multiplier=4):
     encrypted_text = ''.join(chr(int(encrypted_binary[i:i+8], 2)) 
                            for i in range(0, len(encrypted_binary), 8))
     
-    # Store the generated key
-    with KeyManager() as km:
-        key_id = km.generate_key_id()
-        km.store_key(binary_key, key_id, {
-            "text_length": len(text),
-            "bits_generated": num_bits,
-            "final_key_length": len(binary_key)
-        })
-    
-    # Return both encrypted text and key identifier
-    return f"{encrypted_text}:{key_id}"
+    # Return both encrypted text and key
+    return encrypted_text, binary_key
 
-def decrypt_message(encrypted_text):
+def decrypt_message(encrypted_text, key):
     """Decrypt a message using the same XOR principle as encryption."""
     # Remove any whitespace/newlines
     encrypted_text = encrypted_text.strip()
     
     try:
-        # Format is now "encrypted:key_id"
-        text_part, key_id = encrypted_text.split(':', 1)
+        # Convert to bits
+        text_bits = ''.join(format(ord(c), '08b') for c in encrypted_text)
         
-        # Retrieve key using key manager
-        with KeyManager() as km:
-            key_bits = km.get_key(key_id)
-            if not key_bits:
-                raise ValueError("Key not found or invalid")
-            
-            # Convert to bits
-            text_bits = ''.join(format(ord(c), '08b') for c in text_part)
-            
-            if len(key_bits) < len(text_bits):
-                raise ValueError("Key is too short for decryption")
-            
-            # Decrypt using XOR
-            decrypted_bits = ''.join(
-                str(int(text_bits[i]) ^ int(key_bits[i])) 
-                for i in range(len(text_bits))
-            )
-            
-            # Convert bits back to text
-            decrypted_bytes = bytes(
-                int(decrypted_bits[i:i+8], 2) 
-                for i in range(0, len(decrypted_bits), 8)
-            )
-            return decrypted_bytes.decode('utf-8')
+        if len(key) < len(text_bits):
+            raise ValueError("Key is too short for decryption")
         
+        # Decrypt using XOR
+        decrypted_bits = ''.join(
+            str(int(text_bits[i]) ^ int(key[i])) 
+            for i in range(len(text_bits))
+        )
+        
+        # Convert bits back to text
+        decrypted_bytes = bytes(
+            int(decrypted_bits[i:i+8], 2) 
+            for i in range(0, len(decrypted_bits), 8)
+        )
+        return decrypted_bytes.decode('utf-8')
+    
     except (ValueError, UnicodeDecodeError) as e:
         raise ValueError(f"Decryption failed: {str(e)}")

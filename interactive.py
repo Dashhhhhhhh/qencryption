@@ -45,6 +45,18 @@ def delete_stored_key():
         else:
             print(f"\nKey {key_id} not found.")
 
+def delete_all_stored_keys():
+    """Delete all stored keys"""
+    confirmation = input("\nAre you sure you want to delete all keys? This action cannot be undone (yes/no): ").strip().lower()
+    if confirmation == 'yes':
+        with KeyManager() as km:
+            if km.delete_all_keys():
+                print("\nAll keys deleted successfully.")
+            else:
+                print("\nFailed to delete all keys.")
+    else:
+        print("\nDeletion of all keys canceled.")
+
 def interactive_console():
     DEFAULT_ENCRYPTED_FILE = "encrypted_output.txt"
     DEFAULT_DECRYPTED_FILE = "decrypted_output.txt"
@@ -58,11 +70,12 @@ def interactive_console():
         print("3. Decrypt a message")
         print("4. List stored keys")
         print("5. Delete a key")
-        print("6. Exit")
+        print("6. Delete all keys")
+        print("7. Exit")
         
-        choice = input("\nSelect an option (1-6): ").strip()
+        choice = input("\nSelect an option (1-7): ").strip()
         
-        if choice == '6':
+        if choice == '7':
             print("Goodbye!")
             break
         elif choice == '4':
@@ -77,6 +90,12 @@ def interactive_console():
             print("==========")
             delete_stored_key()
             input("\nPress Enter to continue...")
+        elif choice == '6':
+            clear_screen()
+            print("Delete All Keys")
+            print("===============")
+            delete_all_stored_keys()
+            input("\nPress Enter to continue...")
         elif choice == '3':
             clear_screen()
             print("BB84 Decryption")
@@ -88,6 +107,12 @@ def interactive_console():
                 continue
             if not input_file:
                 input_file = DEFAULT_ENCRYPTED_FILE
+            
+            key = input("\nEnter the key for decryption: ").strip()
+            if not key:
+                print("\nError: Key is required for decryption")
+                input("\nPress Enter to continue...")
+                continue
                 
             try:
                 # Read encrypted text
@@ -98,7 +123,7 @@ def interactive_console():
                     raise ValueError("File is empty")
                 
                 # Decrypt
-                decrypted_text = decrypt_message(encrypted_text)
+                decrypted_text = decrypt_message(encrypted_text, key)
                 
                 # Save decrypted text to file
                 with open(DEFAULT_DECRYPTED_FILE, 'w', encoding='utf-8') as f:
@@ -156,13 +181,14 @@ def interactive_console():
                 
                 # Perform encryption with dynamic bit size
                 print("\nEncrypting...")
-                encrypted_text = encrypt_message(text, key_multiplier=4)  # 4x multiplier for safety
+                encrypted_text, key = encrypt_message(text, key_multiplier=4)  # 4x multiplier for safety
                 
                 # Save to file
                 with open(output_file, 'w', encoding='utf-8') as f:
                     f.write(encrypted_text)
                     
                 print(f"\nSuccess! Encrypted text saved to: {output_file}")
+                print(f"Encryption key: {key}")
                 input("\nPress Enter to continue...")
                 
             except Exception as e:
