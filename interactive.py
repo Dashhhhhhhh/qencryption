@@ -1,5 +1,7 @@
 import os
 from quantum_encrypt import encrypt_message, decrypt_message
+from key_manager import KeyManager
+import time
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -9,6 +11,39 @@ def validate_bits(bits):
 
 def validate_key(key, text_length):
     return len(key) >= text_length and all(c in '01' for c in key)
+
+def list_stored_keys():
+    """Display all stored keys and their metadata"""
+    with KeyManager() as km:
+        keys = km.list_keys()
+        if not keys:
+            print("\nNo keys stored.")
+            return
+        
+        print("\nStored Keys:")
+        print("-" * 50)
+        for key_id, data in keys.items():
+            created = time.strftime('%Y-%m-%d %H:%M:%S', 
+                                  time.localtime(data['created']))
+            print(f"ID: {key_id}")
+            print(f"Created: {created}")
+            if data['metadata']:
+                print("Metadata:")
+                for k, v in data['metadata'].items():
+                    print(f"  {k}: {v}")
+            print("-" * 50)
+
+def delete_stored_key():
+    """Delete a stored key"""
+    key_id = input("\nEnter key ID to delete (or 'back' to return): ").strip()
+    if key_id.lower() == 'back':
+        return
+        
+    with KeyManager() as km:
+        if km.delete_key(key_id):
+            print(f"\nKey {key_id} deleted successfully.")
+        else:
+            print(f"\nKey {key_id} not found.")
 
 def interactive_console():
     DEFAULT_ENCRYPTED_FILE = "encrypted_output.txt"
@@ -21,13 +56,27 @@ def interactive_console():
         print("1. Encrypt a message")
         print("2. Encrypt with custom bits and key")
         print("3. Decrypt a message")
-        print("4. Exit")
+        print("4. List stored keys")
+        print("5. Delete a key")
+        print("6. Exit")
         
-        choice = input("\nSelect an option (1-4): ").strip()
+        choice = input("\nSelect an option (1-6): ").strip()
         
-        if choice == '4':
+        if choice == '6':
             print("Goodbye!")
             break
+        elif choice == '4':
+            clear_screen()
+            print("Stored Keys")
+            print("===========")
+            list_stored_keys()
+            input("\nPress Enter to continue...")
+        elif choice == '5':
+            clear_screen()
+            print("Delete Key")
+            print("==========")
+            delete_stored_key()
+            input("\nPress Enter to continue...")
         elif choice == '3':
             clear_screen()
             print("BB84 Decryption")
