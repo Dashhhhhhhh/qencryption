@@ -1,5 +1,5 @@
 import os
-from quantum_encrypt import encrypt_message, decrypt_message
+from quantum_encrypt import encrypt_message, decrypt_message, generate_bb84_key
 from key_manager import KeyManager
 import time
 
@@ -23,14 +23,10 @@ def list_stored_keys():
         print("\nStored Keys:")
         print("-" * 50)
         for key_id, data in keys.items():
-            created = time.strftime('%Y-%m-%d %H:%M:%S', 
-                                  time.localtime(data['created']))
-            print(f"ID: {key_id}")
+            created = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(data['metadata'].get('created', time.time())))
+            print(f"Key ID: {key_id}")
             print(f"Created: {created}")
-            if data['metadata']:
-                print("Metadata:")
-                for k, v in data['metadata'].items():
-                    print(f"  {k}: {v}")
+            print(f"Metadata: {data['metadata']}")
             print("-" * 50)
 
 def delete_stored_key():

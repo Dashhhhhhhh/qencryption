@@ -23,8 +23,8 @@ def generate_bb84_key(num_bits):
 
     if use_quantum:
         api_key = os.getenv("IONQ_API_KEY")
-        service = cirq.IonQService(api_key=api_key)
-        job = service.run(program=circuit, repetitions=1)
+        service = cirq.ionq.IonQService(api_key=api_key)
+        job = service.create_job(circuit=circuit, repetitions=1)
         results = job.results()
     else:
         sim = cirq.Simulator()
