@@ -34,17 +34,59 @@ class KeyManager:
 
     def _hash_key(self, key: str) -> str:
         """Create SHA-256 hash of the key"""
-        return hashlib.sha256(key.encode()).hexdigest()
+        # Ensure key is in proper string format
+        if isinstance(key, list):
+            key = ''.join(str(bit) for bit in key)
+        elif isinstance(key, bytes):
+            key = key.decode('utf-8')
+            
+        # Normalize the key string
+        key = str(key).strip()
+        
+        return hashlib.sha256(key.encode('utf-8')).hexdigest()
 
     def _verify_key_hash(self, key: str, stored_hash: str) -> bool:
         """Verify if key matches stored hash"""
-        return self._hash_key(key) == stored_hash
+        try:
+            # Ensure key is in string format
+            if isinstance(key, list):
+                key = ''.join(str(bit) for bit in key)
+            elif isinstance(key, bytes):
+                key = key.decode('utf-8')
+                
+            # Normalize the key string
+            key = str(key).strip()
+            
+            # Calculate hash
+            computed_hash = self._hash_key(key)
+            
+            # Compare hashes
+            match = computed_hash == stored_hash
+            print(f"Debug: Computed hash: {computed_hash}")
+            print(f"Debug: Stored hash:  {stored_hash}")
+            
+            return match
+            
+        except Exception as e:
+            print(f"Error during hash verification: {str(e)}")
+            return False
 
     def _quantum_encrypt(self, data: str) -> Tuple[str, str]:
         """Encrypt data using quantum circuit"""
-        # Convert data to binary
-        binary_data = ''.join(format(ord(c), '08b') for c in data)
+        # Normalize input data
+        if isinstance(data, list):
+            data = ''.join(str(bit) for bit in data)
+        data = str(data).strip()
+        
+        # Convert data to binary (only if it's not already binary)
+        if not all(c in '01' for c in data):
+            binary_data = ''.join(format(ord(c), '08b') for c in data)
+        else:
+            binary_data = data
+            
         num_bits = len(binary_data)
+        print(f"Debug: Binary data length: {num_bits}")
+        print(f"Debug: Original data: {data}")
         
         # Create quantum circuit
         qubits = [cirq.NamedQubit(f'q{i}') for i in range(num_bits)]
@@ -83,7 +125,7 @@ class KeyManager:
         
         return encrypted_bits, bases_key
 
-    def _quantum_decrypt(self, encrypted_data: str, bases_key: str) -> str:
+    def _quantum_decrypt(self, encrypted_data: str, bases_key: str) -> Optional[str]:
         """Decrypt data using quantum circuit"""
         try:
             # Convert bases back to X/Z
@@ -130,43 +172,48 @@ class KeyManager:
         if metadata is None:
             metadata = {}
         
-        # Encrypt the key quantum mechanically
-        encrypted_key, bases_key = self._quantum_encrypt(key)
-        key_hash = self._hash_key(key)
+        # Normalize the key format
+        if isinstance(key, list):
+            key = ''.join(str(bit) for bit in key)
+        key = str(key).strip()
         
+        # Store hash of original key
+        key_hash = self._hash_key(key)
+        print(f"Debug: Original key: {key}")
+        print(f"Debug: Original key length: {len(key)}")
+        print(f"Debug: Storing key with hash: {key_hash}")
+        
+        # Store the original key value
         self.keys[identifier] = {
-            "key": encrypted_key,
-            "bases": bases_key,
+            "key": key,  # Store original key
             "hash": key_hash,
             "created": time.time(),
             "metadata": metadata,
-            "quantum_encrypted": True
+            "quantum_encrypted": False  # Don't use quantum encryption for storage
         }
         self._save_keys()
 
     def get_key(self, identifier: str) -> Optional[str]:
-        """Retrieve and decrypt a quantum-encrypted key"""
-        if identifier in self.keys:
-            try:
-                key_data = self.keys[identifier]
-                if not key_data.get("quantum_encrypted", False):
-                    return super().get_key(identifier)
-                    
-                encrypted_key = key_data["key"]
-                bases_key = key_data["bases"]
-                stored_hash = key_data["hash"]
-                
-                # Quantum decrypt
-                decrypted_key = self._quantum_decrypt(encrypted_key, bases_key)
-                if decrypted_key and self._verify_key_hash(decrypted_key, stored_hash):
-                    return decrypted_key
-                else:
-                    print(f"Warning: Key hash verification failed for key_id: {identifier}")
-            except Exception as e:
-                print(f"Error retrieving key: {str(e)}")
-        else:
+        """Retrieve a key"""
+        if identifier not in self.keys:
             print(f"Error: Key with identifier '{identifier}' not found.")
-        return None
+            return None
+
+        try:
+            key_data = self.keys[identifier]
+            stored_key = key_data["key"]
+            stored_hash = key_data["hash"]
+            
+            # Verify hash
+            if not self._verify_key_hash(stored_key, stored_hash):
+                print("Error: Key hash verification failed")
+                return None
+            
+            return stored_key
+            
+        except Exception as e:
+            print(f"Error retrieving key: {str(e)}")
+            return None
 
     def verify_all_keys(self) -> Dict[str, bool]:
         """Verify all stored keys against their hashes"""

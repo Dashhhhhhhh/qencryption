@@ -2,7 +2,8 @@ import os
 from quantum_encrypt import encrypt_message, decrypt_message, generate_bb84_key
 from key_manager import KeyManager
 import time
-
+import cirq
+import cirq_ionq # New import
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -53,27 +54,157 @@ def delete_all_stored_keys():
     else:
         print("\nDeletion of all keys canceled.")
 
+def is_valid_api_key(api_key: str) -> bool:
+    """Check if the API key is valid format"""
+    if not api_key or not api_key.strip():
+        return False
+    key = api_key.strip()
+    return len(key) >= 20 and "." not in key and " " not in key
+
+def test_qpu():
+    """Test the QPU simulator or hardware"""
+    print("\nTesting QPU...")
+    api_key = os.getenv("IONQ_API_KEY")
+    use_simulator = os.getenv("USE_IONQ_SIMULATOR", "true").lower() == "true"
+    
+    print("Backend configuration:")
+    print("--------------------")
+    valid_key = is_valid_api_key(api_key)
+    print(f"IONQ API Key: {'Valid' if valid_key else 'Invalid or not available'}")
+    print(f"API Key Status: {'✓ Valid format' if valid_key else '✗ Invalid format or missing'}")
+    
+    if not valid_key:
+        print("\nWarning: Invalid API key format. Using local simulator instead.")
+        try:
+            sim = cirq.Simulator()
+            qubits = [cirq.LineQubit(0)]
+            circuit = cirq.Circuit(cirq.H(qubits[0]), cirq.measure(qubits[0], key='m'))
+            results = sim.run(circuit)
+            print("✓ Test completed successfully using local Cirq simulator")
+        except Exception as e:
+            print(f"✗ Local simulator test failed: {str(e)}")
+    else:
+        try:
+            service = cirq_ionq.Service(api_key=api_key)
+            qubits = [cirq.LineQubit(0)]
+            circuit = cirq.Circuit(cirq.H(qubits[0]), cirq.measure(qubits[0], key='m'))
+            target = "simulator" if use_simulator else "qpu"
+            print(f"\nAttempting to connect to IONQ cloud ({target})...")
+            job = service.create_job(circuit=circuit, repetitions=1, target=target)
+            results = job.results()
+            print(f"✓ Test completed successfully using IONQ {target}")
+        except Exception as e:
+            print(f"✗ IONQ cloud test failed: {str(e)}")
+            print("\nFalling back to local simulator...")
+            try:
+                sim = cirq.Simulator()
+                results = sim.run(circuit)
+                print("✓ Test completed successfully using local Cirq simulator")
+            except Exception as e:
+                print(f"✗ Local simulator test failed: {str(e)}")
+    
+    input("\nPress Enter to continue...")
+
+def show_api_key_status():
+    """Display the current API key status and configuration"""
+    print("\nAPI Key Status")
+    print("=============")
+    api_key = os.getenv("IONQ_API_KEY")
+    use_simulator = os.getenv("USE_IONQ_SIMULATOR", "true").lower() == "true"
+    
+    print(f"API Key: {api_key if api_key else 'Not set'}")
+    print(f"API Key Valid: {'✓ Yes' if is_valid_api_key(api_key) else '✗ No'}")
+    print(f"Mode: {'IONQ Simulator' if use_simulator else 'IONQ QPU'} (when API key valid)")
+    print(f"Key Length: {len(api_key.strip()) if api_key else 0} characters")
+    input("\nPress Enter to continue...")
+
+def get_file_location(default_file: str, operation: str) -> str:
+    """Get file location with proper path handling"""
+    while True:
+        file_path = input(f"\nEnter {operation} file location (default: {default_file}, or 'back' to return): ").strip()
+        if file_path.lower() == 'back':
+            return None
+        if not file_path:
+            file_path = default_file
+        
+        file_path = os.path.abspath(file_path)
+        directory = os.path.dirname(file_path)
+        try:
+            os.makedirs(directory, exist_ok=True)
+            return file_path
+        except Exception as e:
+            print(f"Error creating directory: {str(e)}")
+            continue
+
+def store_encryption_key(key: str, text_length: int, output_file: str) -> str:
+    """Store encryption key and return key ID"""
+    with KeyManager() as km:
+        key_id = km.generate_key_id()
+        km.store_key(key, key_id, {
+            "text_length": text_length,
+            "output_file": output_file,
+            "created": time.strftime('%Y-%m-%d %H:%M:%S')
+        })
+        return key_id
+
+def decrypt_with_key_id():
+    """Get decryption key using only key ID"""
+    while True:
+        key_id = input("\nEnter key ID (or 'back' to return): ").strip()
+        if key_id.lower() == 'back':
+            return None
+        if not key_id:
+            print("Error: Key ID is required")
+            continue
+            
+        with KeyManager() as km:
+            key = km.get_key(key_id)
+            if key:
+                print("Key successfully retrieved.")
+                return key
+            print("Failed to retrieve key. Please check the Key ID and try again.")
+        
+        retry = input("\nWould you like to try another Key ID? (y/n): ").strip().lower()
+        if retry != 'y':
+            return None
+
 def interactive_console():
-    DEFAULT_ENCRYPTED_FILE = "encrypted_output.txt"
-    DEFAULT_DECRYPTED_FILE = "decrypted_output.txt"
+    DEFAULT_OUTPUT_DIR = "output"
+    DEFAULT_ENCRYPTED_FILE = os.path.join(DEFAULT_OUTPUT_DIR, "encrypted_output.txt")
+    DEFAULT_DECRYPTED_FILE = os.path.join(DEFAULT_OUTPUT_DIR, "decrypted_output.txt")
+    
+    os.makedirs(DEFAULT_OUTPUT_DIR, exist_ok=True)
 
     while True:
         clear_screen()
-        print("Quantum BB84 Encryption Console")
-        print("==============================")
+        api_key = os.getenv("IONQ_API_KEY")
+        use_simulator = os.getenv("USE_IONQ_SIMULATOR", "true").lower() == "true"
+        
+        if not api_key or not api_key.strip():
+            mode = "Local Simulator (No API Key)"
+        else:
+            mode = f"IONQ {'Simulator' if use_simulator else 'QPU'}"
+        
+        print(f"Quantum BB84 Encryption Console ({mode})")
+        print("=" * (28 + len(mode)))
         print("1. Encrypt a message")
         print("2. Encrypt with custom bits and key")
         print("3. Decrypt a message")
         print("4. List stored keys")
         print("5. Delete a key")
         print("6. Delete all keys")
-        print("7. Exit")
+        print("7. Test QPU")
+        print("8. Show API key status")
+        print("9. Exit")
         
-        choice = input("\nSelect an option (1-7): ").strip()
+        choice = input("\nSelect an option (1-9): ").strip()
         
-        if choice == '7':
+        if choice == '9':
             print("Goodbye!")
             break
+        elif choice == '8':
+            clear_screen()
+            show_api_key_status()
         elif choice == '4':
             clear_screen()
             print("Stored Keys")
@@ -84,115 +215,124 @@ def interactive_console():
             clear_screen()
             print("Delete Key")
             print("==========")
-            delete_stored_key()
-            input("\nPress Enter to continue...")
+            key_id = input("Enter key ID to delete: ").strip()
+            with KeyManager() as km:
+                km.delete_key(key_id)
+            input("\nKey deleted. Press Enter to continue...")
         elif choice == '6':
             clear_screen()
             print("Delete All Keys")
             print("===============")
-            delete_all_stored_keys()
-            input("\nPress Enter to continue...")
-        elif choice == '3':
+            with KeyManager() as km:
+                km.keys.clear()
+                km._save_keys()
+            input("\nAll keys deleted. Press Enter to continue...")
+        elif choice == '1':
             clear_screen()
-            print("BB84 Decryption")
-            print("==============")
+            print("Encrypt a Message")
+            print("=================")
             
-            # Get input file with default
-            input_file = input(f"\nEnter input filename (default: {DEFAULT_ENCRYPTED_FILE}, or 'back' to return): ").strip()
-            if input_file.lower() == 'back':
-                continue
-            if not input_file:
-                input_file = DEFAULT_ENCRYPTED_FILE
-            
-            key = input("\nEnter the key for decryption: ").strip()
-            if not key:
-                print("\nError: Key is required for decryption")
+            text = input("\nEnter text to encrypt: ").strip()
+            if not text:
+                print("Error: Text cannot be empty")
                 input("\nPress Enter to continue...")
+                continue
+            
+            output_file = get_file_location(DEFAULT_ENCRYPTED_FILE, "output")
+            if not output_file:
                 continue
                 
             try:
-                # Read encrypted text
+                print("\nEncrypting...")
+                encrypted_text, key = encrypt_message(text, key_multiplier=4)
+                
+                if encrypted_text is None or key is None:
+                    print("Encryption failed!")
+                    input("\nPress Enter to continue...")
+                    continue
+                
+                key_id = store_encryption_key(key, len(text), output_file)
+                
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    f.write(encrypted_text)
+                
+                print("\nEncryption successful!")
+                print("--------------------")
+                print(f"Output file: {output_file}")
+                print(f"Key ID: {key_id}")
+                print("\nIMPORTANT: Save this Key ID - you will need it to decrypt the file!")
+                
+            except Exception as e:
+                print(f"\nError during encryption: {str(e)}")
+            
+            input("\nPress Enter to continue...")
+        elif choice == '2':
+            clear_screen()
+            print("Encrypt with Custom Bits and Key")
+            print("===============================")
+            
+            text = input("\nEnter text to encrypt: ").strip()
+            custom_bits = input("\nEnter custom bits (0s and 1s only): ").strip()
+            custom_key = input("\nEnter custom key (0s and 1s, must be at least as long as the text): ").strip()
+            
+            if not validate_bits(custom_bits) or not validate_key(custom_key, len(text) * 8):
+                print("Invalid bits or key! Please use only 0s and 1s and ensure the key is long enough.")
+                input("\nPress Enter to continue...")
+                continue
+            
+            encrypted_text = encrypt_message(text, custom_key)
+            print(f"\nEncrypted text: {encrypted_text}")
+            
+            with KeyManager() as km:
+                key_id = km.generate_key_id()
+                km.store_key(custom_key, key_id, {"text_length": len(text)})
+                print(f"Key stored with ID: {key_id}")
+            
+            with open(DEFAULT_ENCRYPTED_FILE, 'w') as f:
+                f.write(encrypted_text)
+            print(f"Encrypted text saved to {DEFAULT_ENCRYPTED_FILE}")
+            input("\nPress Enter to continue...")
+        elif choice == '3':
+            clear_screen()
+            print("Decrypt a Message")
+            print("=================")
+            
+            input_file = get_file_location(DEFAULT_ENCRYPTED_FILE, "input")
+            if not input_file:
+                continue
+                
+            output_file = get_file_location(DEFAULT_DECRYPTED_FILE, "output")
+            if not output_file:
+                continue
+            
+            key = decrypt_with_key_id()
+            if not key:
+                input("\nPress Enter to continue...")
+                continue
+            
+            try:
                 with open(input_file, 'r', encoding='utf-8') as f:
                     encrypted_text = f.read().strip()
                 
                 if not encrypted_text:
-                    raise ValueError("File is empty")
+                    raise ValueError("Input file is empty")
                 
-                # Decrypt
                 decrypted_text = decrypt_message(encrypted_text, key)
-                
-                # Save decrypted text to file
-                with open(DEFAULT_DECRYPTED_FILE, 'w', encoding='utf-8') as f:
-                    f.write(decrypted_text)
-                
-                print("\nDecrypted message:")
+                print(f"\nDecrypted message:")
                 print("-----------------")
                 print(decrypted_text)
-                print(f"\nDecrypted text also saved to: {DEFAULT_DECRYPTED_FILE}")
                 
-            except FileNotFoundError:
-                print(f"\nError: File '{input_file}' not found")
-            except ValueError as e:
-                print(f"\nError: {str(e)}")
-            except Exception as e:
-                print(f"\nUnexpected error: {str(e)}")
-            
-            input("\nPress Enter to continue...")
-                
-        elif choice == '1' or choice == '2':
-            clear_screen()
-            print("BB84 Encryption")
-            print("==============")
-            
-            # Get input text
-            text = input("\nEnter text to encrypt (or 'back' to return): ").strip()
-            if text.lower() == 'back':
-                continue
-
-            custom_bits = None
-            custom_key = None
-            if choice == '2':
-                while True:
-                    bits = input("\nEnter your bits (0s and 1s only): ").strip()
-                    if validate_bits(bits):
-                        custom_bits = bits
-                        break
-                    print("Invalid input! Please use only 0s and 1s.")
-                
-                while True:
-                    key = input("\nEnter your key (0s and 1s, must be at least as long as the text): ").strip()
-                    if validate_key(key, len(text)):
-                        custom_key = key
-                        break
-                    print("Invalid input! Key must be 0s and 1s and at least as long as the text.")
-                
-            # Get output file name with default
-            output_file = input(f"Enter output filename (default: {DEFAULT_ENCRYPTED_FILE}): ").strip()
-            if not output_file:
-                output_file = DEFAULT_ENCRYPTED_FILE
-                
-            try:
-                # Calculate required bits based on text length
-                text_length = len(text) * 8  # 8 bits per character
-                
-                # Perform encryption with dynamic bit size
-                print("\nEncrypting...")
-                encrypted_text, key = encrypt_message(text, key_multiplier=4)  # 4x multiplier for safety
-                
-                # Save to file
                 with open(output_file, 'w', encoding='utf-8') as f:
-                    f.write(encrypted_text)
+                    f.write(decrypted_text)
+                print(f"\nDecrypted text saved to: {output_file}")
                     
-                print(f"\nSuccess! Encrypted text saved to: {output_file}")
-                print(f"Encryption key: {key}")
-                input("\nPress Enter to continue...")
-                
             except Exception as e:
                 print(f"\nError: {str(e)}")
-                input("\nPress Enter to continue...")
-        else:
-            print("\nInvalid option!")
+            
             input("\nPress Enter to continue...")
+        elif choice == '7':
+            clear_screen()
+            test_qpu()
 
 if __name__ == "__main__":
     interactive_console()
